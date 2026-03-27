@@ -2,16 +2,27 @@ use Mojolicious::Lite -signatures;
 use Mojo::Pg;
 
 # ── Configuration ──────────────────────────────────────────────
-app->secrets(['budget-app-secret-change-me']);
+# Use APP_SECRET env var in production; fall back to a dev default
+app->secrets([ $ENV{APP_SECRET} || 'budget-app-secret-change-me' ]);
 app->sessions->default_expiration(86400); # 24 hours
 
-# ── Database connection (via Docker env) ───────────────────────
+# ── Hypnotoad (production server) config ───────────────────────
+# Railway injects PORT; hypnotoad reads this block automatically
+app->config(
+    hypnotoad => {
+        listen  => [ 'http://*:' . ($ENV{PORT} || 8080) ],
+        workers => 2,
+        proxy   => 1,   # trust X-Forwarded-* headers from Railway's proxy
+    }
+);
+
+# ── Database connection ────────────────────────────────────────
 helper pg => sub { state $pg = Mojo::Pg->new($ENV{DATABASE_URL}) };
 
-# ── Serve static files from /public ────────────────────────────
+# ── Serve static files from /public ───────────────────────────
 app->static->paths->[0] = app->home->child('public');
 
-# ── Routes ─────────────────────────────────────────────────────
+# ── Routes ────────────────────────────────────────────────────
 
 # Main page
 get '/' => sub ($c) {
@@ -29,7 +40,6 @@ get '/api/tree/:parent_id' => sub ($c) {
     my $results;
 
     if ($mode eq 'edit' && $user_id) {
-        # Personal allocations; default to equal split if none saved
         my $sql = q{
             WITH sibling_count AS (
                 SELECT COUNT(*) AS cnt FROM org_tree WHERE parent_dept_id = ?
@@ -49,7 +59,6 @@ get '/api/tree/:parent_id' => sub ($c) {
         };
         $results = $c->pg->db->query($sql, $parent_id, $user_id, $parent_id)->hashes;
     } else {
-        # Collective average allocations
         my $sql = q{
             WITH sibling_count AS (
                 SELECT COUNT(*) AS cnt FROM org_tree WHERE parent_dept_id = ?
@@ -77,7 +86,6 @@ get '/api/tree/:parent_id' => sub ($c) {
     $c->render(json => $results);
 };
 
-# API: Check if a node has children (for drill-down UI cues)
 get '/api/tree/:parent_id/has_children' => sub ($c) {
     my $parent_id = $c->param('parent_id');
     my $count = $c->pg->db->query(
@@ -87,7 +95,6 @@ get '/api/tree/:parent_id/has_children' => sub ($c) {
     $c->render(json => { has_children => ($count > 0 ? \1 : \0) });
 };
 
-# API: Get node info (for breadcrumb trail)
 get '/api/node/:id' => sub ($c) {
     my $id = $c->param('id');
     my $node = $c->pg->db->query(
@@ -97,7 +104,6 @@ get '/api/node/:id' => sub ($c) {
     $c->render(json => $node);
 };
 
-# API: Get ancestor chain for breadcrumbs
 get '/api/breadcrumbs/:id' => sub ($c) {
     my $id = $c->param('id');
     my $sql = q{
@@ -117,7 +123,6 @@ get '/api/breadcrumbs/:id' => sub ($c) {
     $c->render(json => $results);
 };
 
-# API: Save user allocations (batch)
 post '/api/allocate' => sub ($c) {
     my $payload = $c->req->json;
     my $user_id = $c->session('user_id');
@@ -125,7 +130,6 @@ post '/api/allocate' => sub ($c) {
     return $c->render(json => {error => 'Unauthorized'}, status => 401)
         unless $user_id;
 
-    # Validate: allocations must sum to ~100
     my $total = 0;
     $total += $_->{budget_allocation} for @$payload;
     if (abs($total - 100) > 0.5) {
@@ -152,7 +156,6 @@ post '/api/allocate' => sub ($c) {
     $c->render(json => {status => 'success'});
 };
 
-# API: Get participation stats
 get '/api/stats' => sub ($c) {
     my $stats = $c->pg->db->query(q{
         SELECT
@@ -164,7 +167,6 @@ get '/api/stats' => sub ($c) {
     $c->render(json => $stats);
 };
 
-# ── Auth (simplified for demo) ─────────────────────────────────
 post '/login' => sub ($c) {
     my $data = $c->req->json;
     my $user = $c->pg->db->query(
