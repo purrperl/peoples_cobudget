@@ -2,15 +2,21 @@ FROM perl:5.36-slim
 
 WORKDIR /app
 
-# Install system dependencies for Postgres driver
-RUN apt-get update && apt-get install -y libpq-dev build-essential \
+# Install system dependencies for PostgreSQL driver
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Perl dependencies
 COPY cpanfile .
-RUN cpanm --installdeps .
+RUN cpanm --notest --installdeps .
 
-COPY . .
+# Copy application files to the locations hypnotoad expects
+COPY backend/app.pl .
+COPY backend/templates ./templates
+COPY public ./public
 
-EXPOSE 80
-CMD ["morbo", "app.pl", "-l", "http://*:80"]
+EXPOSE 8080
+
+CMD ["hypnotoad", "-f", "app.pl"]
