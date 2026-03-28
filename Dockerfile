@@ -17,6 +17,6 @@ COPY backend/app.pl .
 COPY backend/templates ./templates
 COPY public ./public
 
-EXPOSE 8080
+EXPOSE 80
 
 CMD ["hypnotoad", "-f", "app.pl"]
