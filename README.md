@@ -10,7 +10,7 @@ A civic engagement web application that lets citizens express how they'd allocat
 docker-compose up --build
 ```
 
-Then open [http://localhost:8080](http://localhost:8080).
+Then open [http://localhost:80](http://localhost:80).
 
 **Demo credentials:** `demo` / `demo123`
 

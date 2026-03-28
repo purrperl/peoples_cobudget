@@ -12,5 +12,5 @@ RUN cpanm --installdeps .
 
 COPY . .
 
-EXPOSE 8080
-CMD ["morbo", "app.pl", "-l", "http://*:8080"]
+EXPOSE 80
+CMD ["morbo", "app.pl", "-l", "http://*:80"]
