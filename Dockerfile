@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y libpq-dev build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Perl dependencies
-COPY /backend/cpanfile .
+COPY cpanfile .
 RUN cpanm --installdeps .
 
 COPY . .
