@@ -10,7 +10,7 @@ app->sessions->default_expiration(86400); # 24 hours
 # Railway injects PORT; hypnotoad reads this block automatically
 app->config(
     hypnotoad => {
-        listen  => [ 'http://*:' . ($ENV{PORT} || 80) ],
+        listen  => [ 'https://*:' . ($ENV{PORT} || 80) ],
         workers => 2,
         proxy   => 1,   # trust X-Forwarded-* headers from Railway's proxy
     }
